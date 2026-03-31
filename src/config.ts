@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { generateKeyPair, type KeyPair } from "@attest-protocol/attest-ts";
 
@@ -49,6 +49,12 @@ export function resolveConfig(pluginConfig?: Record<string, unknown>): {
  */
 export function loadOrCreateKeys(keyPath: string): KeyPair & { verificationMethod: string } {
   if (existsSync(keyPath)) {
+    // Tighten permissions on existing key files from older versions
+    const currentMode = statSync(keyPath).mode & 0o777;
+    if (currentMode !== 0o600) {
+      chmodSync(keyPath, 0o600);
+    }
+
     const raw = readFileSync(keyPath, "utf-8");
     const stored = JSON.parse(raw) as KeyPair & { verificationMethod?: string };
     return {

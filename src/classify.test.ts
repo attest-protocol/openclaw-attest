@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { classify, loadCustomMappings } from "./classify.js";
+import { classify, loadCustomMappings, resetMappings } from "./classify.js";
 
 describe("classify", () => {
   it("maps read_file to filesystem.file.read with low risk", () => {
@@ -53,6 +53,7 @@ describe("loadCustomMappings", () => {
   let tempDir: string;
 
   afterEach(() => {
+    resetMappings();
     if (tempDir) {
       rmSync(tempDir, { recursive: true, force: true });
     }

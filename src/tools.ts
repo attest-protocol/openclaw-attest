@@ -34,7 +34,7 @@ export function createQueryReceiptsTool(deps: ToolDeps) {
         Type.String({ description: 'Filter by risk level: "low", "medium", "high", "critical"' }),
       ),
       status: Type.Optional(
-        Type.String({ description: 'Filter by outcome status: "success" or "failure"' }),
+        Type.String({ description: 'Filter by outcome status: "success", "failure", or "pending"' }),
       ),
       limit: Type.Optional(
         Type.Number({ description: "Maximum number of receipts to return (default: 20)" }),

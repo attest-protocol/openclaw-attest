@@ -50,7 +50,11 @@ describe("resolveConfig", () => {
       delete process.env.HOME;
       expect(() => resolveConfig({ dbPath: "~/test/db.sqlite" })).toThrow("HOME");
     } finally {
-      process.env.HOME = originalHome;
+      if (originalHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = originalHome;
+      }
     }
   });
 });
@@ -119,6 +123,22 @@ describe("loadOrCreateKeys", () => {
 
     const stats = statSync(keyPath);
     const mode = stats.mode & 0o777;
+    expect(mode).toBe(0o600);
+  });
+
+  it("tightens permissions on existing key files with insecure mode", () => {
+    tempDir = join(tmpdir(), `attest-test-${randomUUID()}`);
+    mkdirSync(tempDir, { recursive: true });
+    const keyPath = join(tempDir, "keys.json");
+
+    // Simulate an old key file with world-readable permissions
+    writeFileSync(keyPath, JSON.stringify({ publicKey: "pub", privateKey: "priv" }), { mode: 0o644 });
+    expect(statSync(keyPath).mode & 0o777).toBe(0o644);
+
+    loadOrCreateKeys(keyPath);
+
+    // Should have been tightened to 0o600
+    const mode = statSync(keyPath).mode & 0o777;
     expect(mode).toBe(0o600);
   });
 });
