@@ -16,7 +16,14 @@ const DEFAULTS = {
 
 function expandHome(p: string): string {
   if (p.startsWith("~/")) {
-    return resolve(process.env.HOME ?? "/tmp", p.slice(2));
+    const home = process.env.HOME;
+    if (!home) {
+      throw new Error(
+        "Cannot expand ~/ path: HOME environment variable is not set. " +
+        "Set HOME or use an absolute path in plugin config.",
+      );
+    }
+    return resolve(home, p.slice(2));
   }
   return p;
 }
@@ -59,7 +66,7 @@ export function loadOrCreateKeys(keyPath: string): KeyPair & { verificationMetho
     ...keys,
     verificationMethod: "did:openclaw:agent#key-1",
   };
-  writeFileSync(keyPath, JSON.stringify(toStore, null, 2), "utf-8");
+  writeFileSync(keyPath, JSON.stringify(toStore, null, 2), { encoding: "utf-8", mode: 0o600 });
 
   return toStore;
 }

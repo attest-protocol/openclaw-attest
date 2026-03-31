@@ -3,9 +3,12 @@
  */
 
 import { Type } from "@sinclair/typebox";
-import type { ReceiptStore } from "@attest-protocol/attest-ts";
+import type { ReceiptStore, RiskLevel, OutcomeStatus } from "@attest-protocol/attest-ts";
 import { verifyStoredChain } from "@attest-protocol/attest-ts";
 import type { getChainId } from "./chain.js";
+
+const VALID_RISK_LEVELS = new Set<string>(["low", "medium", "high", "critical"]);
+const VALID_STATUSES = new Set<string>(["success", "failure", "pending"]);
 
 type ToolDeps = {
   store: ReceiptStore;
@@ -46,10 +49,17 @@ export function createQueryReceiptsTool(deps: ToolDeps) {
         limit?: number;
       },
     ) {
+      const riskLevel = params.risk_level && VALID_RISK_LEVELS.has(params.risk_level)
+        ? (params.risk_level as RiskLevel)
+        : undefined;
+      const status = params.status && VALID_STATUSES.has(params.status)
+        ? (params.status as OutcomeStatus)
+        : undefined;
+
       const results = deps.store.query({
         actionType: params.action_type,
-        riskLevel: params.risk_level as "low" | "medium" | "high" | "critical" | undefined,
-        status: params.status as "success" | "failure" | "pending" | undefined,
+        riskLevel,
+        status,
         limit: params.limit ?? 20,
       });
 
