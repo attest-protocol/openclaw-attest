@@ -12,7 +12,7 @@
 
 Cryptographically signed, hash-linked audit trail for every tool call an OpenClaw agent makes.
 
-Built on [`@attest-protocol/attest-ts`](https://github.com/attest-protocol/attest-ts) — zero runtime dependencies beyond the SDK.
+Built on [`@attest-protocol/attest-ts`](https://github.com/attest-protocol/attest-ts) and [`@sinclair/typebox`](https://github.com/sinclairzx81/typebox).
 
 [Spec](https://github.com/attest-protocol/spec) &bull; [TypeScript SDK](https://github.com/attest-protocol/attest-ts) &bull; [Python SDK](https://github.com/attest-protocol/attest-py)
 
@@ -46,6 +46,10 @@ OpenClaw Gateway
 Copy or symlink into your OpenClaw workspace plugins:
 
 ```bash
+# Copy
+cp -r /path/to/openclaw-attest ~/.openclaw/plugins/openclaw-attest
+
+# Or symlink for development
 ln -s /path/to/openclaw-attest ~/.openclaw/plugins/openclaw-attest
 ```
 
@@ -140,7 +144,7 @@ taxonomy.json       # Default OpenClaw tool → action type mappings
 
 ```sh
 pnpm install
-pnpm test              # 45 tests
+pnpm test              # run the test suite
 pnpm run typecheck     # TypeScript strict mode
 pnpm test:coverage     # with V8 coverage
 ```
