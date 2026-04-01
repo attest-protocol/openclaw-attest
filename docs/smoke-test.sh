@@ -32,6 +32,11 @@ echo "=== 3. Verifying plugin is installed ==="
 $OPENCLAW --dev plugins list
 
 echo ""
+echo "=== 3b. Clearing old sessions and receipts for clean run ==="
+rm -rf ~/.openclaw-dev/agents/main/sessions/*
+rm -f ~/.openclaw/attest/receipts.db
+
+echo ""
 echo "=== 4. Starting gateway in background ==="
 $OPENCLAW --dev gateway --verbose --auth none &
 GATEWAY_PID=$!
