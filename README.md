@@ -21,6 +21,42 @@ Built on [`@attest-protocol/attest-ts`](https://github.com/attest-protocol/attes
 
 ---
 
+## What it looks like
+
+After a session where the agent reads files, runs a command, and writes output, querying the audit trail returns:
+
+```json
+{
+  "total_receipts": 5,
+  "total_chains": 1,
+  "by_risk": { "low": 4, "high": 1 },
+  "by_status": { "success": 4, "failure": 1 },
+  "by_action": {
+    "filesystem.file.read": 2,
+    "filesystem.file.create": 1,
+    "system.command.execute": 1,
+    "system.browser.navigate": 1
+  },
+  "results": [
+    { "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "success", "sequence": 1 },
+    { "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "failure", "sequence": 2 },
+    { "action": "system.command.execute",  "risk": "high", "target": "run_command",      "status": "success", "sequence": 3 },
+    { "action": "system.browser.navigate", "risk": "low",  "target": "browser_navigate", "status": "success", "sequence": 4 },
+    { "action": "filesystem.file.create",  "risk": "low",  "target": "write_file",       "status": "success", "sequence": 5 }
+  ]
+}
+```
+
+Verifying the chain confirms nothing was tampered with:
+
+```
+Chain "chain_openclaw_main_sid-42" is valid: 5 receipts, all signatures and hash links verified.
+```
+
+Every receipt is a signed [W3C Verifiable Credential](https://www.w3.org/TR/vc-data-model-2.0/) — parameters are hashed (never stored in plaintext), and each receipt is hash-linked to the previous one, forming a tamper-evident chain.
+
+---
+
 ## Why receipts?
 
 AI agents that read files, run commands, and browse the web are powerful — but that power needs accountability. When an agent operates autonomously, you need to know exactly what it did, prove that the record hasn't been tampered with, and keep sensitive details private.
