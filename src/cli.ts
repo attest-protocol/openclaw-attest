@@ -9,12 +9,14 @@
  * Usage:
  *   openclaw-attest receipts [--risk <level>] [--action <type>] [--status <status>] [--limit <n>] [--db <path>] [--json]
  *   openclaw-attest verify [--chain <id>] [--db <path>] [--json]
+ *   openclaw-attest export [--chain <id>] [--id <receipt-id>] [--format receipt|presentation] [--db <path>]
  *   openclaw-attest --help
  *   openclaw-attest --version
  */
 
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { openStore, verifyStoredChain } from "@attest-protocol/attest-ts";
 import type { ActionReceipt, RiskLevel, OutcomeStatus, ReceiptStore, StoreStats } from "@attest-protocol/attest-ts";
@@ -41,12 +43,20 @@ interface VerifyOptions {
   json: boolean;
 }
 
+interface ExportOptions {
+  chain?: string;
+  id?: string;
+  format: "receipt" | "presentation";
+  db: string;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const VALID_RISK_LEVELS = new Set<string>(["low", "medium", "high", "critical"]);
 const VALID_STATUSES = new Set<string>(["success", "failure", "pending"]);
+const VALID_FORMATS = new Set<string>(["receipt", "presentation"]);
 
 const DEFAULT_DB_PATH = "~/.openclaw/attest/receipts.db";
 const DEFAULT_LIMIT = 20;
@@ -70,15 +80,20 @@ function expandHome(p: string): string {
 }
 
 function loadVersion(): string {
-  try {
-    // Walk up from src/cli.ts (or dist/src/cli.js) to find package.json
-    const url = new URL("../../package.json", import.meta.url);
-    const raw = readFileSync(url, "utf-8");
-    const pkg = JSON.parse(raw) as { version: string };
-    return pkg.version;
-  } catch {
-    return "unknown";
+  // Try ../package.json (src layout) then ../../package.json (dist layout)
+  for (const rel of ["../package.json", "../../package.json"]) {
+    try {
+      const url = new URL(rel, import.meta.url);
+      const raw = readFileSync(url, "utf-8");
+      const pkg = JSON.parse(raw) as { version?: string };
+      if (pkg && typeof pkg.version === "string") {
+        return pkg.version;
+      }
+    } catch {
+      // Try next candidate
+    }
   }
+  return "unknown";
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +106,7 @@ export function helpText(): string {
 Usage:
   openclaw-attest receipts [options]   Query receipts from the audit trail
   openclaw-attest verify  [options]    Verify chain integrity
+  openclaw-attest export  [options]    Export receipts as JSON-LD
   openclaw-attest --help               Show this help
   openclaw-attest --version            Show version
 
@@ -105,7 +121,13 @@ receipts options:
 verify options:
   --chain <id>       Chain ID to verify (verifies all chains if omitted)
   --db <path>        Override database path
-  --json             Output as JSON`;
+  --json             Output as JSON
+
+export options:
+  --chain <id>       Export all receipts in a chain
+  --id <receipt-id>  Export a single receipt by ID
+  --format <fmt>     Output format: receipt (default) or presentation (W3C VP envelope)
+  --db <path>        Override database path`;
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +333,7 @@ function runVerify(opts: VerifyOptions): void {
       }
 
       // Query all receipts to discover chain IDs
-      const allReceipts = store.query({ limit: 100_000 });
+      const allReceipts = store.query({ limit: stats.total });
       const chainIds = [...new Set(allReceipts.map((r) => r.credentialSubject.chain.chain_id))];
 
       const results = chainIds.map((chainId) => {
@@ -333,6 +355,55 @@ function runVerify(opts: VerifyOptions): void {
         }
       }
     }
+  } finally {
+    store?.close();
+  }
+}
+
+export function wrapInPresentation(receipts: ActionReceipt[]): object {
+  return {
+    "@context": ["https://www.w3.org/ns/credentials/v2"],
+    type: "VerifiablePresentation",
+    verifiableCredential: receipts,
+  };
+}
+
+function runExport(opts: ExportOptions): void {
+  if (opts.id && opts.chain) {
+    throw new Error("Cannot use both --id and --chain. Use one or the other.");
+  }
+  if (!opts.id && !opts.chain) {
+    throw new Error("Export requires --chain <id> or --id <receipt-id>. Use --help for usage.");
+  }
+
+  const dbPath = expandHome(opts.db);
+  let store: ReceiptStore | undefined;
+
+  try {
+    store = openStore(dbPath);
+    let output: object;
+
+    if (opts.id) {
+      const receipt = store.getById(opts.id);
+      if (!receipt) {
+        throw new Error(`Receipt not found: "${opts.id}"`);
+      }
+      // --id: single receipt object (or wrapped in VP)
+      output = opts.format === "presentation"
+        ? wrapInPresentation([receipt])
+        : receipt;
+    } else {
+      const receipts = store.getChain(opts.chain!);
+      if (receipts.length === 0) {
+        throw new Error(`No receipts found for chain: "${opts.chain}"`);
+      }
+      // --chain: always an array (or wrapped in VP)
+      output = opts.format === "presentation"
+        ? wrapInPresentation(receipts)
+        : receipts;
+    }
+
+    process.stdout.write(JSON.stringify(output, null, 2) + "\n");
   } finally {
     store?.close();
   }
@@ -360,7 +431,7 @@ function loadPublicKey(dbPath: string): string {
 // ---------------------------------------------------------------------------
 
 export interface ParsedArgs {
-  command: "receipts" | "verify" | "help" | "version";
+  command: "receipts" | "verify" | "export" | "help" | "version";
   risk?: string;
   action?: string;
   status?: string;
@@ -368,6 +439,8 @@ export interface ParsedArgs {
   db: string;
   json: boolean;
   chain?: string;
+  id?: string;
+  format: "receipt" | "presentation";
 }
 
 export function parseCliArgs(argv: string[]): ParsedArgs {
@@ -383,27 +456,31 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
       db: { type: "string" },
       json: { type: "boolean", default: false },
       chain: { type: "string" },
+      id: { type: "string" },
+      format: { type: "string" },
     },
     allowPositionals: true,
     strict: true,
   });
 
+  const defaults = { limit: DEFAULT_LIMIT, db: DEFAULT_DB_PATH, json: false, format: "receipt" as const };
+
   if (values.help) {
-    return { command: "help", limit: DEFAULT_LIMIT, db: DEFAULT_DB_PATH, json: false };
+    return { command: "help", ...defaults };
   }
 
   if (values.version) {
-    return { command: "version", limit: DEFAULT_LIMIT, db: DEFAULT_DB_PATH, json: false };
+    return { command: "version", ...defaults };
   }
 
   const command = positionals[0] ?? "receipts";
 
-  if (command !== "receipts" && command !== "verify") {
+  if (command !== "receipts" && command !== "verify" && command !== "export") {
     throw new Error(`Unknown command: "${command}". Use --help for usage.`);
   }
 
   const limit = values.limit !== undefined ? Number(values.limit) : DEFAULT_LIMIT;
-  if (!Number.isFinite(limit) || limit < 1) {
+  if (!Number.isInteger(limit) || limit < 1) {
     throw new Error(`Invalid --limit value: "${values.limit}". Must be a positive integer.`);
   }
 
@@ -421,15 +498,24 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
     );
   }
 
+  const format = values.format ?? "receipt";
+  if (!VALID_FORMATS.has(format)) {
+    throw new Error(
+      `Invalid --format value: "${format}". Must be one of: receipt, presentation.`,
+    );
+  }
+
   return {
-    command: command as "receipts" | "verify",
+    command: command as "receipts" | "verify" | "export",
     risk,
     action: values.action,
     status,
-    limit: Math.floor(limit),
+    limit,
     db: values.db ?? DEFAULT_DB_PATH,
     json: values.json ?? false,
     chain: values.chain,
+    id: values.id,
+    format: format as "receipt" | "presentation",
   };
 }
 
@@ -467,16 +553,22 @@ export function run(argv: string[]): void {
         json: args.json,
       });
       break;
+
+    case "export":
+      runExport({
+        chain: args.chain,
+        id: args.id,
+        format: args.format,
+        db: args.db,
+      });
+      break;
   }
 }
 
 // Entry point when run as a script
 const isDirectRun =
   process.argv[1] &&
-  (
-    import.meta.url.endsWith(process.argv[1]) ||
-    import.meta.url === `file://${process.argv[1]}`
-  );
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
 if (isDirectRun) {
   try {
