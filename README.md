@@ -23,7 +23,7 @@ Built on [`@attest-protocol/attest-ts`](https://github.com/attest-protocol/attes
 
 ## What it looks like
 
-After a session where the agent reads files, runs a command, and writes output, querying the audit trail returns:
+After a session where the agent reads files, runs a command, browses a page, and writes output, querying the audit trail returns:
 
 ```json
 {
@@ -38,11 +38,11 @@ After a session where the agent reads files, runs a command, and writes output, 
     "system.browser.navigate": 1
   },
   "results": [
-    { "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "success", "sequence": 1 },
-    { "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "failure", "sequence": 2 },
-    { "action": "system.command.execute",  "risk": "high", "target": "run_command",      "status": "success", "sequence": 3 },
-    { "action": "system.browser.navigate", "risk": "low",  "target": "browser_navigate", "status": "success", "sequence": 4 },
-    { "action": "filesystem.file.create",  "risk": "low",  "target": "write_file",       "status": "success", "sequence": 5 }
+    { "id": "rec-…01", "timestamp": "2026-04-01T02:10:01Z", "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "success", "sequence": 1 },
+    { "id": "rec-…02", "timestamp": "2026-04-01T02:10:02Z", "action": "filesystem.file.read",    "risk": "low",  "target": "read_file",        "status": "failure", "sequence": 2 },
+    { "id": "rec-…03", "timestamp": "2026-04-01T02:10:03Z", "action": "system.command.execute",  "risk": "high", "target": "run_command",      "status": "success", "sequence": 3 },
+    { "id": "rec-…04", "timestamp": "2026-04-01T02:10:04Z", "action": "system.browser.navigate", "risk": "low",  "target": "browser_navigate", "status": "success", "sequence": 4 },
+    { "id": "rec-…05", "timestamp": "2026-04-01T02:10:05Z", "action": "filesystem.file.create",  "risk": "low",  "target": "write_file",       "status": "success", "sequence": 5 }
   ]
 }
 ```
@@ -96,12 +96,11 @@ OpenClaw Gateway
 
 ## Install
 
-```sh
-npm install @attest-protocol/openclaw-attest
-# or: pnpm add @attest-protocol/openclaw-attest
+```bash
+openclaw plugins install @attest-protocol/openclaw-attest
 ```
 
-Then enable the plugin in your OpenClaw config.
+Then enable the plugin in your OpenClaw config. See [`docs/INSTALL.md`](docs/INSTALL.md) for tool visibility setup and configuration options.
 
 ## Agent tools
 
