@@ -48,6 +48,4 @@ jobs:
       - run: pnpm run build
 
       - name: Publish to npm
-        run: |
-          sed -i '/_authToken/d' ~/.npmrc
-          npm publish --access public --provenance
+        run: npm publish --access public --provenance
