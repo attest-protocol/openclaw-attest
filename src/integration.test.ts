@@ -35,7 +35,7 @@ function createMockApi(config?: Record<string, unknown>): {
 } {
   const hooks = new Map<string, CapturedHook[]>();
   const tools = new Map<string, CapturedTool>();
-  const services: { name: string; stop?: () => Promise<void> | void }[] = [];
+  const services: { id: string; stop?: () => Promise<void> | void }[] = [];
   const logs: string[] = [];
 
   const api: OpenClawPluginApi = {
@@ -53,7 +53,7 @@ function createMockApi(config?: Record<string, unknown>): {
       const name = opts?.name ?? tool.name;
       tools.set(name, { definition: tool, opts });
     },
-    registerService: (service: { name: string; stop?: () => Promise<void> | void }) => {
+    registerService: (service: { id: string; stop?: () => Promise<void> | void }) => {
       services.push(service);
     },
   };
@@ -128,7 +128,7 @@ describe("integration: full plugin lifecycle", () => {
 
     // One service registered
     expect(services).toHaveLength(1);
-    expect(services[0].name).toBe("attest-store");
+    expect(services[0].id).toBe("attest-store");
 
     // Logs confirm successful registration
     expect(logs.some((l) => l.includes("plugin registered"))).toBe(true);

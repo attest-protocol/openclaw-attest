@@ -112,7 +112,7 @@ export default definePluginEntry({
     // --- Service: clean up store on shutdown ---
 
     api.registerService({
-      name: "attest-store",
+      id: "attest-store",
       async stop() {
         store.close();
         api.logger.info("attest: receipt store closed");
