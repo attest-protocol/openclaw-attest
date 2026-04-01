@@ -86,9 +86,10 @@ describe("parseCliArgs", () => {
     );
   });
 
-  it("floors fractional limit values", () => {
-    const args = parseCliArgs(["receipts", "--limit", "5.7"]);
-    expect(args.limit).toBe(5);
+  it("rejects fractional limit values", () => {
+    expect(() => parseCliArgs(["receipts", "--limit", "5.7"])).toThrow(
+      'Invalid --limit value: "5.7"',
+    );
   });
 
   it("accepts all valid risk levels", () => {

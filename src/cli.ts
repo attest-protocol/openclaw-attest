@@ -16,6 +16,7 @@
 
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { openStore, verifyStoredChain } from "@attest-protocol/attest-ts";
 import type { ActionReceipt, RiskLevel, OutcomeStatus, ReceiptStore, StoreStats } from "@attest-protocol/attest-ts";
@@ -79,15 +80,20 @@ function expandHome(p: string): string {
 }
 
 function loadVersion(): string {
-  try {
-    // Walk up from src/cli.ts (or dist/src/cli.js) to find package.json
-    const url = new URL("../../package.json", import.meta.url);
-    const raw = readFileSync(url, "utf-8");
-    const pkg = JSON.parse(raw) as { version: string };
-    return pkg.version;
-  } catch {
-    return "unknown";
+  // Try ../package.json (src layout) then ../../package.json (dist layout)
+  for (const rel of ["../package.json", "../../package.json"]) {
+    try {
+      const url = new URL(rel, import.meta.url);
+      const raw = readFileSync(url, "utf-8");
+      const pkg = JSON.parse(raw) as { version?: string };
+      if (pkg && typeof pkg.version === "string") {
+        return pkg.version;
+      }
+    } catch {
+      // Try next candidate
+    }
   }
+  return "unknown";
 }
 
 // ---------------------------------------------------------------------------
@@ -327,7 +333,7 @@ function runVerify(opts: VerifyOptions): void {
       }
 
       // Query all receipts to discover chain IDs
-      const allReceipts = store.query({ limit: 100_000 });
+      const allReceipts = store.query({ limit: stats.total });
       const chainIds = [...new Set(allReceipts.map((r) => r.credentialSubject.chain.chain_id))];
 
       const results = chainIds.map((chainId) => {
@@ -466,7 +472,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
   }
 
   const limit = values.limit !== undefined ? Number(values.limit) : DEFAULT_LIMIT;
-  if (!Number.isFinite(limit) || limit < 1) {
+  if (!Number.isInteger(limit) || limit < 1) {
     throw new Error(`Invalid --limit value: "${values.limit}". Must be a positive integer.`);
   }
 
@@ -496,7 +502,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
     risk,
     action: values.action,
     status,
-    limit: Math.floor(limit),
+    limit,
     db: values.db ?? DEFAULT_DB_PATH,
     json: values.json ?? false,
     chain: values.chain,
@@ -554,10 +560,7 @@ export function run(argv: string[]): void {
 // Entry point when run as a script
 const isDirectRun =
   process.argv[1] &&
-  (
-    import.meta.url.endsWith(process.argv[1]) ||
-    import.meta.url === `file://${process.argv[1]}`
-  );
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
 if (isDirectRun) {
   try {
