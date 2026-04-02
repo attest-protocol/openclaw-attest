@@ -4,7 +4,7 @@
 
 ```bash
 # Install the plugin
-openclaw plugins install @agent-receipts/openclaw
+openclaw plugins install @agnt-rcpt/openclaw
 
 # Or link a local clone for development
 openclaw plugins install /path/to/openclaw-attest --link

@@ -49,7 +49,7 @@ Adding mappings for new OpenClaw tools is a great way to contribute. Edit `taxon
 
 ## Spec Alignment
 
-This plugin implements the [Action Receipt Protocol](https://github.com/agent-receipts/spec) via the `@agent-receipts/sdk-ts` SDK. Changes must remain compatible with the protocol specification.
+This plugin implements the [Action Receipt Protocol](https://github.com/agent-receipts/spec) via the `@agnt-rcpt/sdk-ts` SDK. Changes must remain compatible with the protocol specification.
 
 ## License
 
