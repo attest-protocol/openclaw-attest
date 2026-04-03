@@ -13,7 +13,7 @@
 Instead, please use one of:
 
 - GitHub's **Report a vulnerability** feature on this repository
-- Email: otto@0tt0.net
+- Email: security@agentreceipts.ai
 
 Include as much detail as possible: description, steps to reproduce, impact assessment, and any suggested fix.
 
