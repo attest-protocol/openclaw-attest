@@ -70,3 +70,6 @@ When working in this repo as an AI coding agent, these rules apply in addition t
 - **Never modify `openclaw.plugin.json`** without explicit human approval — it defines the plugin's public contract
 - **Always run `pnpm test && pnpm typecheck`** before proposing changes
 - **Taxonomy changes** (`taxonomy.json`) must include corresponding test updates in `src/classify.test.ts`
+- **Use git worktrees** for new work — do not edit directly on main or shared branches, to avoid conflicts with other agents or in-progress work
+- **Self-review before committing** — read back your full diff before committing or opening a PR. Check for mistakes, consistency, and completeness
+- **Optimise for sustainable quality** — take the time to do things properly. We are not looking for quick fixes
