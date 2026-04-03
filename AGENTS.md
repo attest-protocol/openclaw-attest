@@ -51,3 +51,22 @@ CI runs typecheck + vitest + V8 coverage via GitHub Actions.
 - `@agnt-rcpt/sdk-ts` — Agent Receipts SDK (receipts, store, signing)
 - `@sinclair/typebox` — JSON schema for tool parameter validation
 - `openclaw` — peer dependency (`>=2025.0.0`)
+
+## Security
+
+- Never commit real private keys. Test fixtures use well-known test keys only (see `src/test-helpers.ts`).
+- Parameters are never stored plaintext — only SHA-256 hashes appear in receipts. Do not weaken this.
+- Ed25519 is the only supported signing algorithm. Do not introduce alternative or weaker schemes.
+- Report vulnerabilities via [GitHub Security Advisories](https://github.com/agent-receipts/openclaw/security/advisories/new), not public issues. See [SECURITY.md](SECURITY.md).
+
+## Agent safety rules
+
+When working in this repo as an AI coding agent, these rules apply in addition to the conventions above:
+
+- **Never modify CI/CD workflows** (`.github/workflows/`) without explicit human review
+- **Never weaken cryptographic parameters** — do not change key sizes, hash algorithms, or signature schemes
+- **Never skip or delete existing tests** — add tests, don't remove them
+- **Never generate real cryptographic keys** — always use fixtures from `src/test-helpers.ts`
+- **Never modify `openclaw.plugin.json`** without explicit human approval — it defines the plugin's public contract
+- **Always run `pnpm test && pnpm typecheck`** before proposing changes
+- **Taxonomy changes** (`taxonomy.json`) must include corresponding test updates in `src/classify.test.ts`

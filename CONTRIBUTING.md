@@ -51,6 +51,16 @@ Adding mappings for new OpenClaw tools is a great way to contribute. Edit `taxon
 
 This plugin implements the [Action Receipt Protocol](https://github.com/agent-receipts/spec) via the `@agnt-rcpt/sdk-ts` SDK. Changes must remain compatible with the protocol specification.
 
+## Pre-submit checklist
+
+Before opening a PR, verify:
+
+- [ ] `pnpm test` passes
+- [ ] `pnpm run typecheck` passes
+- [ ] No real keys or secrets in the diff — use test fixtures only
+- [ ] Taxonomy changes include corresponding tests in `src/classify.test.ts`
+- [ ] AGENTS.md updated if you changed project structure
+
 ## License
 
 MIT
