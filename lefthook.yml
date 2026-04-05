@@ -1,0 +1,19 @@
+# Lefthook — pre-commit and commit-msg hooks
+# Install: brew install lefthook && lefthook install
+# Docs: https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: typecheck
+      glob: "*.{ts,tsx}"
+      run: pnpm run typecheck
+
+    - name: test
+      glob: "*.{ts,tsx}"
+      run: pnpm test
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: convco check --from-stdin < {1}
