@@ -43,6 +43,30 @@ pnpm install
 - Vitest for all tests; cover edge cases
 - Never push directly to `main`
 
+## Commit messages
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must start with a type:
+
+```
+feat: add new feature
+fix: correct a bug
+docs: update documentation
+chore: maintenance task
+refactor: restructure without behavior change
+test: add or update tests
+ci: change CI/CD configuration
+```
+
+The `commit-msg` hook enforces this via [convco](https://convco.github.io/check/). Install hooks with:
+
+```bash
+brew install lefthook convco          # macOS
+cargo install convco                  # Linux / Windows / any platform with Rust
+lefthook install
+```
+
+See the [convco installation docs](https://convco.github.io/check/installation/) for all options.
+
 ## Taxonomy Contributions
 
 Adding mappings for new OpenClaw tools is a great way to contribute. Edit `taxonomy.json` and add corresponding tests in `src/classify.test.ts`.
@@ -72,6 +96,7 @@ Before opening a PR, verify:
 - [ ] No real keys or secrets in the diff — use test fixtures only
 - [ ] Taxonomy changes include corresponding tests in `src/classify.test.ts`
 - [ ] AGENTS.md updated if you changed project structure
+- [ ] Commit message follows [Conventional Commits](https://www.conventionalcommits.org/) format
 
 ## License
 
