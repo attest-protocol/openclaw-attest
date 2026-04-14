@@ -13,8 +13,8 @@ trap 'fail "Hook failed unexpectedly — fix before pushing."' ERR
 
 # Only run for git push commands.
 input=$(cat)
-command=$(echo "$input" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//')
-if [[ "$command" != git\ push* ]]; then
+command=$(printf '%s' "$input" | jq -r '.command // empty' 2>/dev/null || printf '')
+if [[ -z "$command" ]] || [[ "$command" != git\ push* ]]; then
   exit 0
 fi
 
