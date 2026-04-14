@@ -11,6 +11,13 @@ fail() {
 
 trap 'fail "Hook failed unexpectedly — fix before pushing."' ERR
 
+# Only run for git push commands.
+input=$(cat)
+command=$(echo "$input" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//')
+if [[ "$command" != git\ push* ]]; then
+  exit 0
+fi
+
 cd "${CLAUDE_PROJECT_DIR:-.}" || fail "Failed to enter project directory."
 
 echo "Running typecheck..." >&2
