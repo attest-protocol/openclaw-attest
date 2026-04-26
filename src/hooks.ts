@@ -139,6 +139,8 @@ export async function afterToolCall(
     },
     outcome: {
       status,
+      // Omit `error` when absent — RFC 8785 canonicalize rejects undefined values,
+      // so `error: undefined` would throw during hashReceipt.
       ...(event.error !== undefined ? { error: event.error } : {}),
     },
     chain: {

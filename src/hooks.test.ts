@@ -82,7 +82,12 @@ describe("hooks", () => {
       await simulateToolCall(deps, "read_file", { path: "/test.txt" });
 
       const chain = store.getChain("chain_openclaw_test-session_sid-1");
-      expect(chain[0]!.credentialSubject.outcome.status).toBe("success");
+      const outcome = chain[0]!.credentialSubject.outcome;
+
+      expect(outcome.status).toBe("success");
+      // RFC 8785 canonicalize rejects undefined values, so the success path must
+      // omit the `error` key entirely rather than emit `error: undefined`.
+      expect("error" in outcome).toBe(false);
     });
 
     it("sets failure outcome when error is present", async () => {
