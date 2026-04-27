@@ -15,9 +15,6 @@ import { openStore } from "@agnt-rcpt/sdk-ts";
 import type { OpenClawPluginApi } from "./openclaw-types.js";
 import plugin from "./index.js";
 
-// Local extension until sdk-ts@0.5.0 adds parameters_preview to Action.
-type ActionWithPreview = { parameters_preview?: Record<string, string> };
-
 // ---- Mock OpenClawPluginApi ----
 
 type CapturedHook = {
@@ -307,11 +304,11 @@ describe("integration: full plugin lifecycle", () => {
         expect(chain).toHaveLength(2);
 
         // bash receipt (high risk) should have parameters_preview with first matching field
-        const bashAction = chain[0]!.credentialSubject.action as typeof chain[0]["credentialSubject"]["action"] & ActionWithPreview;
+        const bashAction = chain[0]!.credentialSubject.action;
         expect(bashAction.parameters_preview).toEqual({ command: "ls -la" });
 
         // read_file receipt (low risk) should NOT have parameters_preview
-        const readAction = chain[1]!.credentialSubject.action as typeof chain[1]["credentialSubject"]["action"] & ActionWithPreview;
+        const readAction = chain[1]!.credentialSubject.action;
         expect(readAction.parameters_preview).toBeUndefined();
 
         // Chain must still be cryptographically valid with parameters_preview present
@@ -343,7 +340,7 @@ describe("integration: full plugin lifecycle", () => {
         const chain = readStore.getChain("chain_openclaw_no-preview_sid-np");
         expect(chain).toHaveLength(1);
 
-        const action = chain[0]!.credentialSubject.action as typeof chain[0]["credentialSubject"]["action"] & ActionWithPreview;
+        const action = chain[0]!.credentialSubject.action;
         expect(action.parameters_preview).toBeUndefined();
       } finally {
         readStore.close();
@@ -372,11 +369,11 @@ describe("integration: full plugin lifecycle", () => {
         expect(chain).toHaveLength(2);
 
         // read_file previews path (first of ["path", "file_path", "filename"])
-        const readAction = chain[0]!.credentialSubject.action as typeof chain[0]["credentialSubject"]["action"] & ActionWithPreview;
+        const readAction = chain[0]!.credentialSubject.action;
         expect(readAction.parameters_preview).toEqual({ path: "/docs/readme.md" });
 
         // edit_file has no preview_fields in taxonomy — no parameters_preview
-        const editAction = chain[1]!.credentialSubject.action as typeof chain[1]["credentialSubject"]["action"] & ActionWithPreview;
+        const editAction = chain[1]!.credentialSubject.action;
         expect(editAction.parameters_preview).toBeUndefined();
       } finally {
         readStore.close();
@@ -404,10 +401,10 @@ describe("integration: full plugin lifecycle", () => {
         const chain = readStore.getChain("chain_openclaw_preview-arr_sid-arr");
         expect(chain).toHaveLength(2);
 
-        const bashAction = chain[0]!.credentialSubject.action as typeof chain[0]["credentialSubject"]["action"] & ActionWithPreview;
+        const bashAction = chain[0]!.credentialSubject.action;
         expect(bashAction.parameters_preview).toEqual({ command: "echo hello" });
 
-        const readAction = chain[1]!.credentialSubject.action as typeof chain[1]["credentialSubject"]["action"] & ActionWithPreview;
+        const readAction = chain[1]!.credentialSubject.action;
         expect(readAction.parameters_preview).toBeUndefined();
       } finally {
         readStore.close();

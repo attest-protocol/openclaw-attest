@@ -51,11 +51,6 @@ export type HookDeps = {
   parameterPreview?: ParameterPreviewConfig;
 };
 
-// sdk-ts@0.5.0 will add parameters_preview to Action; this local bridge can be removed then.
-type ActionWithPreview = Omit<Action, "id" | "timestamp"> & {
-  parameters_preview?: Record<string, string>;
-};
-
 export function shouldPreview(
   config: ParameterPreviewConfig | undefined,
   riskLevel: string,
@@ -171,7 +166,7 @@ export async function afterToolCall(
   // Determine outcome
   const status = event.error ? "failure" as const : "success" as const;
 
-  const action: ActionWithPreview = {
+  const action: Omit<Action, "id" | "timestamp"> = {
     type: classification.action_type,
     risk_level: classification.risk_level,
     target: { system: "openclaw", resource: event.toolName },
