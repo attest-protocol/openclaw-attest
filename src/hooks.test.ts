@@ -8,7 +8,13 @@ import {
   sha256,
   type ReceiptStore,
 } from "@agnt-rcpt/sdk-ts";
-import { beforeToolCall, afterToolCall, shouldPreview, extractPreview } from "./hooks.js";
+import {
+  beforeToolCall,
+  afterToolCall,
+  evictPendingForSession,
+  shouldPreview,
+  extractPreview,
+} from "./hooks.js";
 import { makeHookDeps, simulateToolCall } from "./test-helpers.js";
 
 describe("hooks", () => {
@@ -263,27 +269,61 @@ describe("hooks", () => {
       expect(store.stats().total).toBe(1);
     });
 
-    it("tags each pending entry with its session so cross-session eviction is possible", () => {
+    it("evictPendingForSession only removes entries for the matching session", () => {
       beforeToolCall(
         { toolName: "read_file", params: { path: "/a.txt" }, runId: "rA", toolCallId: "tcA" },
-        { sessionKey: "session-A" },
+        { sessionKey: "session-A", sessionId: "sid-A" },
         deps,
       );
       beforeToolCall(
         { toolName: "read_file", params: { path: "/b.txt" }, runId: "rB", toolCallId: "tcB" },
-        { sessionKey: "session-B" },
+        { sessionKey: "session-B", sessionId: "sid-B" },
         deps,
       );
 
-      // Mirror the index.ts session_start eviction: only entries for the
-      // starting session should be removed.
-      const startingSession = "session-B";
-      for (const [key, entry] of deps.pending) {
-        if (entry.sessionKey === startingSession) deps.pending.delete(key);
-      }
+      evictPendingForSession(deps.pending, "session-B", "sid-B");
 
       expect(deps.pending.has("rA:tcA")).toBe(true);
       expect(deps.pending.has("rB:tcB")).toBe(false);
+    });
+
+    it("evictPendingForSession distinguishes sessions sharing a sessionKey by sessionId", () => {
+      // Two sessions under the same sessionKey but different sessionIds —
+      // the chain state in chain.ts is keyed by (sessionKey, sessionId), so
+      // pending eviction must match both fields, not just sessionKey.
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        { sessionKey: "default", sessionId: "sid-A" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "r2", toolCallId: "tc2" },
+        { sessionKey: "default", sessionId: "sid-B" },
+        deps,
+      );
+
+      evictPendingForSession(deps.pending, "default", "sid-B");
+
+      expect(deps.pending.has("r1:tc1")).toBe(true);
+      expect(deps.pending.has("r2:tc2")).toBe(false);
+    });
+
+    it("evictPendingForSession matches undefined sessionId only to undefined", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        { sessionKey: "default" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "r2", toolCallId: "tc2" },
+        { sessionKey: "default", sessionId: "sid-B" },
+        deps,
+      );
+
+      evictPendingForSession(deps.pending, "default", undefined);
+
+      expect(deps.pending.has("r1:tc1")).toBe(false);
+      expect(deps.pending.has("r2:tc2")).toBe(true);
     });
 
     it("falls back to 'default' sessionKey when ctx.sessionKey is absent", () => {

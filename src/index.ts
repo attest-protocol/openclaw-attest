@@ -13,7 +13,13 @@ import { openStore } from "@agnt-rcpt/sdk-ts";
 
 import { resolveConfig, loadOrCreateKeys } from "./config.js";
 import { loadCustomMappings, DEFAULT_MAPPINGS, DEFAULT_PATTERNS } from "./classify.js";
-import { beforeToolCall, afterToolCall, type HookDeps, type PendingMap } from "./hooks.js";
+import {
+  beforeToolCall,
+  afterToolCall,
+  evictPendingForSession,
+  type HookDeps,
+  type PendingMap,
+} from "./hooks.js";
 import { resetChain, getChainId, type ChainsMap, type ChainState } from "./chain.js";
 import { createQueryReceiptsToolFactory, createVerifyChainToolFactory } from "./tools.js";
 
@@ -74,9 +80,7 @@ export default definePluginEntry({
       const sessionKey = ctx.sessionKey ?? "default";
       const sessionId = ctx.sessionId;
       resetChain(chains, sessionKey, sessionId);
-      for (const [key, entry] of pending) {
-        if (entry.sessionKey === sessionKey) pending.delete(key);
-      }
+      evictPendingForSession(pending, sessionKey, sessionId);
       api.logger.info(`agent-receipts: new chain for session ${sessionKey}`);
     });
 

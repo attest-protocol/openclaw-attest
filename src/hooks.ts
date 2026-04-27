@@ -28,6 +28,7 @@ export type PendingCall = {
   startedAt: string;
   paramsHash: string;
   sessionKey: string;
+  sessionId?: string;
 };
 
 export type PendingMap = Map<string, PendingCall>;
@@ -142,7 +143,25 @@ export function beforeToolCall(
     startedAt: new Date().toISOString(),
     paramsHash: sha256(canonicalize(event.params)),
     sessionKey: ctx.sessionKey ?? "default",
+    sessionId: ctx.sessionId,
   });
+}
+
+/**
+ * Evict pending entries whose stash belongs to the given session.
+ * Matches on both sessionKey and sessionId so two sessions sharing a
+ * sessionKey but with different sessionIds do not trample each other.
+ */
+export function evictPendingForSession(
+  pending: PendingMap,
+  sessionKey: string,
+  sessionId: string | undefined,
+): void {
+  for (const [key, entry] of pending) {
+    if (entry.sessionKey === sessionKey && entry.sessionId === sessionId) {
+      pending.delete(key);
+    }
+  }
 }
 
 /**
