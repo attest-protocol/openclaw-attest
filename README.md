@@ -53,7 +53,7 @@ Verifying the chain confirms nothing was tampered with:
 Chain "chain_openclaw_main_sid-42" is valid: 5 receipts, all signatures and hash links verified.
 ```
 
-Every receipt is a signed [W3C Verifiable Credential](https://www.w3.org/TR/vc-data-model-2.0/) — parameters are hashed (never stored in plaintext), and each receipt is hash-linked to the previous one, forming a tamper-evident chain.
+Every receipt is a signed [W3C Verifiable Credential](https://www.w3.org/TR/vc-data-model-2.0/) — parameters are hashed by default (with optional plaintext preview via `parameterPreview`), and each receipt is hash-linked to the previous one, forming a tamper-evident chain.
 
 ---
 
@@ -173,7 +173,7 @@ Each receipt is a W3C Verifiable Credential signed with Ed25519, recording:
 | **Action** | What happened — classified type, risk level, target tool |
 | **Outcome** | Success/failure status and error details |
 | **Chain** | Sequence number + SHA-256 hash link to previous receipt |
-| **Privacy** | Parameters are hashed, never stored in plaintext |
+| **Privacy** | Parameters are hashed by default; opt in via `parameterPreview` to include selected fields in plaintext |
 | **Proof** | Ed25519Signature2020 with verification method |
 
 ## Taxonomy
@@ -203,8 +203,70 @@ All settings are optional — the plugin works out of the box with sensible defa
 | `dbPath` | `~/.openclaw/agent-receipts/receipts.db` | SQLite receipt database path |
 | `keyPath` | `~/.openclaw/agent-receipts/keys.json` | Ed25519 signing key pair path |
 | `taxonomyPath` | _(bundled)_ | Custom tool-to-action-type mapping |
+| `parameterPreview` | `false` | Selectively disclose parameters in plaintext (see below) |
+
+Default config block:
+
+```jsonc
+{
+  "plugins": {
+    "entries": {
+      "openclaw-agent-receipts": {
+        "config": {
+          "enabled": true,
+          "dbPath": "~/.openclaw/agent-receipts/receipts.db",
+          "keyPath": "~/.openclaw/agent-receipts/keys.json",
+          // "taxonomyPath": "/path/to/custom-taxonomy.json",  // optional — overrides bundled taxonomy
+          "parameterPreview": false  // false | true | "high" | string[]
+        }
+      }
+    }
+  }
+}
+```
 
 Ed25519 signing keys are generated automatically on first run and persisted to `keyPath`.
+
+### Parameter preview
+
+By default, action parameters are hashed but not stored in plaintext. Enable `parameterPreview` to selectively disclose specific fields per action type — useful for auditing high-risk commands without exposing sensitive data on lower-risk calls.
+
+```jsonc
+{
+  "plugins": {
+    "entries": {
+      "openclaw-agent-receipts": {
+        "config": {
+          "parameterPreview": "high"
+        }
+      }
+    }
+  }
+}
+```
+
+Options:
+
+| Value | Behavior |
+|:---|:---|
+| `false` | Hashes only — no plaintext (default) |
+| `true` | Preview enabled for all action types |
+| `"high"` | Preview enabled for `high` and `critical` risk actions only |
+| `["system.command.execute"]` | Preview enabled for specific action types |
+
+With `"high"` enabled, a `system.command.execute` receipt includes:
+
+```jsonc
+{
+  // ...other receipt fields
+  "parameters_hash": "sha256:9c84a8c9...",
+  "parameters_preview": {
+    "command": "echo \"Testing agent-receipts plugin fix\""
+  }
+}
+```
+
+The hash always covers the full original parameters regardless of preview config. Only the **first** matching field from the taxonomy's `preview_fields` list is included in `parameters_preview`, and non-string values are JSON-stringified. Previewed values are stored verbatim — do not list fields that may contain secrets.
 
 ## Project structure
 
@@ -243,7 +305,7 @@ pnpm test:coverage     # with V8 coverage
 | [agent-receipts/sdk-ts](https://github.com/agent-receipts/ar/tree/main/sdk/ts) | TypeScript SDK |
 | [agent-receipts/sdk-py](https://github.com/agent-receipts/ar/tree/main/sdk/py) | Python SDK ([PyPI](https://pypi.org/project/agent-receipts/)) |
 | **agent-receipts/openclaw** (this plugin) | OpenClaw integration |
-| [ojongerius/attest](https://github.com/ojongerius/attest) | MCP proxy + CLI (reference implementation) |
+| [agent-receipts/ar/mcp-proxy](https://github.com/agent-receipts/ar/tree/main/mcp-proxy) | MCP proxy + CLI |
 
 ## License
 

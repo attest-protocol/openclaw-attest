@@ -28,8 +28,17 @@ installing you must allowlist the two agent-receipts tools in your `openclaw.jso
 Without this, the plugin will still load (hooks fire, receipts are
 generated), but the agent will not see the query/verify tools.
 
-Alternatively, you can use `"profile": "full"` to allow all registered
-tools, or allowlist the entire plugin by ID:
+Alternatively, switch to the `"full"` profile to allow all registered tools:
+
+```jsonc
+{
+  "tools": {
+    "profile": "full"
+  }
+}
+```
+
+Or allowlist the entire plugin by ID:
 
 ```jsonc
 {
@@ -53,13 +62,55 @@ All config is optional with sensible defaults:
           "enabled": true,
           "dbPath": "~/.openclaw/agent-receipts/receipts.db",
           "keyPath": "~/.openclaw/agent-receipts/keys.json",
-          "taxonomyPath": null  // custom taxonomy mapping
+          // "taxonomyPath": "/path/to/custom-taxonomy.json",  // optional — overrides bundled taxonomy
+          "parameterPreview": false       // false | true | "high" | string[]
         }
       }
     }
   }
 }
 ```
+
+## Parameter preview
+
+By default, action parameters are hashed but not stored in plaintext. Enable `parameterPreview` to selectively disclose specific fields per action type — useful for auditing high-risk commands without exposing sensitive data on lower-risk calls.
+
+```jsonc
+{
+  "plugins": {
+    "entries": {
+      "openclaw-agent-receipts": {
+        "config": {
+          "parameterPreview": "high"
+        }
+      }
+    }
+  }
+}
+```
+
+Options:
+
+| Value | Behavior |
+|-------|----------|
+| `false` | Hashes only — no plaintext (default) |
+| `true` | Preview enabled for all action types |
+| `"high"` | Preview enabled for `high` and `critical` risk actions only |
+| `["system.command.execute"]` | Preview enabled for specific action types |
+
+With `"high"` enabled, a `system.command.execute` receipt includes:
+
+```jsonc
+{
+  // ...other receipt fields
+  "parameters_hash": "sha256:9c84a8c9...",
+  "parameters_preview": {
+    "command": "echo \"Testing agent-receipts plugin fix\""
+  }
+}
+```
+
+The hash always covers the full original parameters regardless of preview config. Only the **first** matching field from the taxonomy's `preview_fields` list is included in `parameters_preview`, and non-string values are JSON-stringified. Previewed values are stored verbatim — do not list fields that may contain secrets.
 
 ## Verifying
 
