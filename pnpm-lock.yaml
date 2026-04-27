@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@agnt-rcpt/sdk-ts':
-        specifier: ^0.4.1
-        version: 0.4.1
+        specifier: ^0.5.0
+        version: 0.5.0
       '@sinclair/typebox':
         specifier: 0.34.49
         version: 0.34.49
@@ -38,8 +38,8 @@ packages:
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
-  '@agnt-rcpt/sdk-ts@0.4.1':
-    resolution: {integrity: sha512-V1a3uH1D/78Em/peFP+APLF/Is0+ZqQ8QEuYppbazUuLuINp2g2Q+q2DF2pQooFfXELUhsor9VJMseRoMsH+Cg==}
+  '@agnt-rcpt/sdk-ts@0.5.0':
+    resolution: {integrity: sha512-74JZAvX/VauEwk/TBGIE4RXiWMJOvGLgaE5iTUXFe3BZ0zvvNkK1eBOVk7IFOp8Pp1xI1pe8iVUNc7jFvJmdUg==}
     engines: {node: '>=22.11.0'}
 
   '@anthropic-ai/sdk@0.90.0':
@@ -2521,7 +2521,7 @@ snapshots:
     dependencies:
       zod: 4.3.6
 
-  '@agnt-rcpt/sdk-ts@0.4.1': {}
+  '@agnt-rcpt/sdk-ts@0.5.0': {}
 
   '@anthropic-ai/sdk@0.90.0(zod@4.3.6)':
     dependencies:
