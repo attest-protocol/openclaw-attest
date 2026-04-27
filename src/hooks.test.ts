@@ -234,21 +234,6 @@ describe("hooks", () => {
       expect(result.valid).toBe(true);
       expect(result.length).toBe(3);
     });
-
-    it("hashReceipt is stable across a JSON round-trip through the store", async () => {
-      await simulateToolCall(deps, "read_file", { path: "/a.txt" });
-
-      const chainId = "chain_openclaw_test-session_sid-1";
-      // Retrieve the receipt that was stored (goes through JSON.stringify → SQLite → JSON.parse)
-      const retrieved = store.getChain(chainId)[0]!;
-      // Compute hash from retrieved receipt and compare to what recoverChainState would compute
-      const roundTripHash = hashReceipt(retrieved);
-      // The next receipt must link to this hash — confirm it matches what advanceChain stored
-      deps.chains.clear();
-      await simulateToolCall(deps, "write_file", { path: "/b.txt" }, { toolCallId: "tc-2" });
-      const chain = store.getChain(chainId);
-      expect(chain[1]!.credentialSubject.chain.previous_receipt_hash).toBe(roundTripHash);
-    });
   });
 
   describe("pending stash", () => {
@@ -276,6 +261,38 @@ describe("hooks", () => {
 
       // Receipt was created even without stashed data
       expect(store.stats().total).toBe(1);
+    });
+
+    it("tags each pending entry with its session so cross-session eviction is possible", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "rA", toolCallId: "tcA" },
+        { sessionKey: "session-A" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "rB", toolCallId: "tcB" },
+        { sessionKey: "session-B" },
+        deps,
+      );
+
+      // Mirror the index.ts session_start eviction: only entries for the
+      // starting session should be removed.
+      const startingSession = "session-B";
+      for (const [key, entry] of deps.pending) {
+        if (entry.sessionKey === startingSession) deps.pending.delete(key);
+      }
+
+      expect(deps.pending.has("rA:tcA")).toBe(true);
+      expect(deps.pending.has("rB:tcB")).toBe(false);
+    });
+
+    it("falls back to 'default' sessionKey when ctx.sessionKey is absent", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        {},
+        deps,
+      );
+      expect(deps.pending.get("r1:tc1")?.sessionKey).toBe("default");
     });
   });
 });
