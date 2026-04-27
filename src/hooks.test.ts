@@ -2,12 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   openStore,
   verifyChain,
+  verifyStoredChain,
   hashReceipt,
   canonicalize,
   sha256,
   type ReceiptStore,
 } from "@agnt-rcpt/sdk-ts";
-import { beforeToolCall, afterToolCall, shouldPreview, extractPreview } from "./hooks.js";
+import {
+  beforeToolCall,
+  afterToolCall,
+  evictPendingForSession,
+  shouldPreview,
+  extractPreview,
+} from "./hooks.js";
 import { makeHookDeps, simulateToolCall } from "./test-helpers.js";
 
 describe("hooks", () => {
@@ -219,6 +226,20 @@ describe("hooks", () => {
       expect(chain[0]!.credentialSubject.chain.sequence).toBe(1);
       expect(chain[0]!.credentialSubject.chain.previous_receipt_hash).toBeNull();
     });
+
+    it("verifyStoredChain passes after recovery (exercises the production code path)", async () => {
+      await simulateToolCall(deps, "read_file", { path: "/a.txt" }, { toolCallId: "tc-1" });
+      await simulateToolCall(deps, "write_file", { path: "/b.txt" }, { toolCallId: "tc-2" });
+
+      deps.chains.clear();
+
+      await simulateToolCall(deps, "delete_file", { path: "/c.txt" }, { toolCallId: "tc-3" });
+
+      const chainId = "chain_openclaw_test-session_sid-1";
+      const result = verifyStoredChain(store, chainId, deps.publicKey);
+      expect(result.valid).toBe(true);
+      expect(result.length).toBe(3);
+    });
   });
 
   describe("pending stash", () => {
@@ -246,6 +267,72 @@ describe("hooks", () => {
 
       // Receipt was created even without stashed data
       expect(store.stats().total).toBe(1);
+    });
+
+    it("evictPendingForSession only removes entries for the matching session", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "rA", toolCallId: "tcA" },
+        { sessionKey: "session-A", sessionId: "sid-A" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "rB", toolCallId: "tcB" },
+        { sessionKey: "session-B", sessionId: "sid-B" },
+        deps,
+      );
+
+      evictPendingForSession(deps.pending, "session-B", "sid-B");
+
+      expect(deps.pending.has("rA:tcA")).toBe(true);
+      expect(deps.pending.has("rB:tcB")).toBe(false);
+    });
+
+    it("evictPendingForSession distinguishes sessions sharing a sessionKey by sessionId", () => {
+      // Two sessions under the same sessionKey but different sessionIds —
+      // the chain state in chain.ts is keyed by (sessionKey, sessionId), so
+      // pending eviction must match both fields, not just sessionKey.
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        { sessionKey: "default", sessionId: "sid-A" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "r2", toolCallId: "tc2" },
+        { sessionKey: "default", sessionId: "sid-B" },
+        deps,
+      );
+
+      evictPendingForSession(deps.pending, "default", "sid-B");
+
+      expect(deps.pending.has("r1:tc1")).toBe(true);
+      expect(deps.pending.has("r2:tc2")).toBe(false);
+    });
+
+    it("evictPendingForSession matches undefined sessionId only to undefined", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        { sessionKey: "default" },
+        deps,
+      );
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/b.txt" }, runId: "r2", toolCallId: "tc2" },
+        { sessionKey: "default", sessionId: "sid-B" },
+        deps,
+      );
+
+      evictPendingForSession(deps.pending, "default", undefined);
+
+      expect(deps.pending.has("r1:tc1")).toBe(false);
+      expect(deps.pending.has("r2:tc2")).toBe(true);
+    });
+
+    it("falls back to 'default' sessionKey when ctx.sessionKey is absent", () => {
+      beforeToolCall(
+        { toolName: "read_file", params: { path: "/a.txt" }, runId: "r1", toolCallId: "tc1" },
+        {},
+        deps,
+      );
+      expect(deps.pending.get("r1:tc1")?.sessionKey).toBe("default");
     });
   });
 });
