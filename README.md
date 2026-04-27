@@ -302,7 +302,7 @@ pnpm test:coverage     # with V8 coverage
 | [agent-receipts/sdk-ts](https://github.com/agent-receipts/ar/tree/main/sdk/ts) | TypeScript SDK |
 | [agent-receipts/sdk-py](https://github.com/agent-receipts/ar/tree/main/sdk/py) | Python SDK ([PyPI](https://pypi.org/project/agent-receipts/)) |
 | **agent-receipts/openclaw** (this plugin) | OpenClaw integration |
-| [ojongerius/attest](https://github.com/ojongerius/attest) | MCP proxy + CLI (reference implementation) |
+| [agent-receipts/ar/mcp-proxy](https://github.com/agent-receipts/ar/tree/main/mcp-proxy) | MCP proxy + CLI |
 
 ## License
 
