@@ -62,7 +62,7 @@ All config is optional with sensible defaults:
           "enabled": true,
           "dbPath": "~/.openclaw/agent-receipts/receipts.db",
           "keyPath": "~/.openclaw/agent-receipts/keys.json",
-          "taxonomyPath": null,           // custom taxonomy mapping
+          // "taxonomyPath": "/path/to/custom-taxonomy.json",  // optional — overrides bundled taxonomy
           "parameterPreview": false       // false | true | "high" | string[]
         }
       }
@@ -91,8 +91,8 @@ By default, action parameters are hashed but not stored in plaintext. Enable `pa
 
 Options:
 
-| Value | Behaviour |
-|-------|-----------|
+| Value | Behavior |
+|-------|----------|
 | `false` | Hashes only — no plaintext (default) |
 | `true` | Preview enabled for all action types |
 | `"high"` | Preview enabled for `high` and `critical` risk actions only |
@@ -110,7 +110,7 @@ With `"high"` enabled, a `system.command.execute` receipt includes:
 }
 ```
 
-The hash always covers the full original parameters regardless of preview config. The preview is additive and opt-in — fields disclosed are defined per action type in the taxonomy.
+The hash always covers the full original parameters regardless of preview config. Only the **first** matching field from the taxonomy's `preview_fields` list is included in `parameters_preview`, and non-string values are JSON-stringified. Previewed values are stored verbatim — do not list fields that may contain secrets.
 
 ## Verifying
 

@@ -53,7 +53,7 @@ Verifying the chain confirms nothing was tampered with:
 Chain "chain_openclaw_main_sid-42" is valid: 5 receipts, all signatures and hash links verified.
 ```
 
-Every receipt is a signed [W3C Verifiable Credential](https://www.w3.org/TR/vc-data-model-2.0/) — parameters are hashed (never stored in plaintext), and each receipt is hash-linked to the previous one, forming a tamper-evident chain.
+Every receipt is a signed [W3C Verifiable Credential](https://www.w3.org/TR/vc-data-model-2.0/) — parameters are hashed by default (with optional plaintext preview via `parameterPreview`), and each receipt is hash-linked to the previous one, forming a tamper-evident chain.
 
 ---
 
@@ -173,7 +173,7 @@ Each receipt is a W3C Verifiable Credential signed with Ed25519, recording:
 | **Action** | What happened — classified type, risk level, target tool |
 | **Outcome** | Success/failure status and error details |
 | **Chain** | Sequence number + SHA-256 hash link to previous receipt |
-| **Privacy** | Parameters are hashed, never stored in plaintext |
+| **Privacy** | Parameters are hashed by default; opt in via `parameterPreview` to include selected fields in plaintext |
 | **Proof** | Ed25519Signature2020 with verification method |
 
 ## Taxonomy
@@ -216,7 +216,7 @@ Default config block:
           "enabled": true,
           "dbPath": "~/.openclaw/agent-receipts/receipts.db",
           "keyPath": "~/.openclaw/agent-receipts/keys.json",
-          "taxonomyPath": null,
+          // "taxonomyPath": "/path/to/custom-taxonomy.json",  // optional — overrides bundled taxonomy
           "parameterPreview": false  // false | true | "high" | string[]
         }
       }
@@ -247,7 +247,7 @@ By default, action parameters are hashed but not stored in plaintext. Enable `pa
 
 Options:
 
-| Value | Behaviour |
+| Value | Behavior |
 |:---|:---|
 | `false` | Hashes only — no plaintext (default) |
 | `true` | Preview enabled for all action types |
@@ -266,7 +266,7 @@ With `"high"` enabled, a `system.command.execute` receipt includes:
 }
 ```
 
-The hash always covers the full original parameters regardless of preview config. The preview is additive and opt-in — fields disclosed are defined per action type in the taxonomy.
+The hash always covers the full original parameters regardless of preview config. Only the **first** matching field from the taxonomy's `preview_fields` list is included in `parameters_preview`, and non-string values are JSON-stringified. Previewed values are stored verbatim — do not list fields that may contain secrets.
 
 ## Project structure
 
