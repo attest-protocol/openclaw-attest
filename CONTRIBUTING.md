@@ -87,6 +87,36 @@ AI agents (Claude Code, GitHub Copilot, etc.) are first-class contributors to th
 
 **Agent boundaries** — agents must follow the [Agent safety rules](AGENTS.md#agent-safety-rules). Key constraints: no `openclaw.plugin.json` changes without human approval, no CI/CD workflow changes without explicit human review, no real cryptographic keys.
 
+## Release Process
+
+Releases are cut by maintainers using `scripts/release.sh`. The script handles the full flow end-to-end.
+
+```bash
+# Preview all steps without making any changes
+bash scripts/release.sh --dry-run patch
+
+# Cut a patch / minor / major release
+bash scripts/release.sh patch   # e.g. 0.4.2 → 0.4.3
+bash scripts/release.sh minor   # e.g. 0.4.2 → 0.5.0
+bash scripts/release.sh major   # e.g. 0.4.2 → 1.0.0
+
+# Pin to an exact version
+bash scripts/release.sh 1.0.0
+```
+
+**Prerequisites:** `gh` (GitHub CLI, authenticated), `git`, `node`, `npm`.
+
+What the script does:
+
+1. Validates preconditions — clean working tree, on `main`, required tools available
+2. Computes the new version
+3. Promotes `## [Unreleased]` in `CHANGELOG.md` to the new versioned entry
+4. Bumps `package.json`
+5. Commits (`chore(release): vX.Y.Z`), tags, and pushes
+6. Creates the GitHub Release — this triggers `publish.yml`, which publishes to npm
+
+Before cutting a release, make sure `CHANGELOG.md` has a complete `[Unreleased]` section describing all changes since the last tag.
+
 ## Pre-submit checklist
 
 Before opening a PR, verify:
