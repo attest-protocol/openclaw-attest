@@ -69,17 +69,23 @@ gh auth status &>/dev/null || die "gh is not authenticated — run 'gh auth logi
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 [[ "$BRANCH" == "main" ]] || die "must be on main branch (currently on '$BRANCH')"
 
-git diff --quiet          || die "unstaged changes present — commit or stash first"
-git diff --cached --quiet || die "staged changes present — commit or stash first"
+[[ -z "$(git status --porcelain)" ]] \
+  || die "working tree is not clean — commit, stash, or remove untracked files first"
 
 run git pull --ff-only
+
+# Guard: ensure no unpushed commits will sneak into the release push
+if [[ "$DRY_RUN" == false ]]; then
+  AHEAD=$(git rev-list --count "origin/main..HEAD")
+  [[ "$AHEAD" -eq 0 ]] || die "local main is ${AHEAD} commit(s) ahead of origin/main — push first"
+fi
 
 # ── Compute new version ───────────────────────────────────────────────────────
 
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 
 [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-  || die "package.json version '$CURRENT_VERSION' is not a clean X.Y.Z semver (prerelease versions are not supported)"
+  || die "package.json version '${CURRENT_VERSION}' is not a clean X.Y.Z — prerelease versions are not supported"
 
 IFS='.' read -r VER_MAJOR VER_MINOR VER_PATCH <<< "$CURRENT_VERSION"
 
@@ -95,10 +101,18 @@ case "$BUMP" in
     ;;
   *)
     [[ "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      || die "invalid argument '$BUMP' — must be patch/minor/major or X.Y.Z"
+      || die "invalid argument '${BUMP}' — must be patch/minor/major or X.Y.Z"
     NEW_VERSION="$BUMP"
     ;;
 esac
+
+# Guard: new version must be strictly greater than current
+IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+if (( NEW_MAJOR < VER_MAJOR ||
+      ( NEW_MAJOR == VER_MAJOR && NEW_MINOR < VER_MINOR ) ||
+      ( NEW_MAJOR == VER_MAJOR && NEW_MINOR == VER_MINOR && NEW_PATCH <= VER_PATCH ) )); then
+  die "version '${NEW_VERSION}' must be strictly greater than current '${CURRENT_VERSION}'"
+fi
 
 TAG="v${NEW_VERSION}"
 RELEASE_DATE=$(date -u +%Y-%m-%d)
@@ -109,20 +123,22 @@ echo "    new: ${NEW_VERSION}  (${TAG})"
 echo
 
 if git rev-parse "$TAG" &>/dev/null; then
-  die "tag '$TAG' already exists"
+  die "tag '${TAG}' already exists"
 fi
 
 # ── Update CHANGELOG.md ───────────────────────────────────────────────────────
 
 if [[ "$DRY_RUN" == true ]]; then
-  echo "[dry-run] CHANGELOG.md: '## [Unreleased]' → '## [${NEW_VERSION}] - ${RELEASE_DATE}'"
+  echo "[dry-run] CHANGELOG.md: add '## [${NEW_VERSION}] - ${RELEASE_DATE}' and update reference links"
 else
   export NEW_VERSION RELEASE_DATE
   node << 'JSEOF'
 const fs = require('fs');
 const src = fs.readFileSync('CHANGELOG.md', 'utf8');
 const { NEW_VERSION, RELEASE_DATE } = process.env;
-const out = src.replace(
+
+// Promote [Unreleased] heading to a versioned entry; fresh empty [Unreleased] inserted above
+let out = src.replace(
   /^## \[Unreleased\]/m,
   `## [Unreleased]\n\n## [${NEW_VERSION}] - ${RELEASE_DATE}`,
 );
@@ -130,6 +146,17 @@ if (out === src) {
   process.stderr.write('error: CHANGELOG.md has no "## [Unreleased]" section\n');
   process.exit(1);
 }
+
+// Update Keep-a-Changelog reference links at the bottom
+const linkMatch = out.match(/^\[Unreleased\]:\s*(\S+?)\/compare\/v(\d+\.\d+\.\d+)\.\.\.HEAD\s*$/m);
+if (linkMatch) {
+  const [fullMatch, repoUrl, prevVersion] = linkMatch;
+  out = out.replace(
+    fullMatch,
+    `[Unreleased]: ${repoUrl}/compare/v${NEW_VERSION}...HEAD\n[${NEW_VERSION}]: ${repoUrl}/compare/v${prevVersion}...v${NEW_VERSION}`,
+  );
+}
+
 fs.writeFileSync('CHANGELOG.md', out);
 JSEOF
 fi
