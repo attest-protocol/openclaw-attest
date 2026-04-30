@@ -114,7 +114,21 @@ The hash always covers the full original parameters regardless of preview config
 
 ## Verifying
 
-After setup, restart the gateway and confirm the plugin loaded:
+**After `openclaw plugins install`** the gateway must be restarted before the plugin is active.
+`openclaw.json` changes (tool policy, plugin config) are hot-reloaded and do not require a restart.
+
+Restart the gateway with the appropriate command for your setup:
+
+```bash
+# systemd (most Linux installs)
+systemctl restart openclaw-gateway
+```
+
+For other setups, stop and re-start the gateway process however it was launched.
+
+> **Note:** There is no `openclaw restart` command.
+
+Confirm the plugin loaded:
 
 ```bash
 openclaw plugins list
