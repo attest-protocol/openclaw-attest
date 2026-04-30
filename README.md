@@ -106,8 +106,14 @@ Then enable the plugin in your OpenClaw config. See [`docs/INSTALL.md`](docs/INS
 
 Query and verify receipts outside of agent sessions, useful for auditing and debugging.
 
+| Subcommand | Description |
+|:-----------|:------------|
+| `receipts` | List and query receipts (returns a collection) |
+| `verify`   | Verify chain integrity (signatures + hash links) |
+| `export`   | Export receipts as JSON-LD W3C Verifiable Credentials |
+
 ```bash
-# Query all receipts
+# List all receipts
 npx @agnt-rcpt/openclaw receipts
 
 # Filter by risk level
@@ -115,6 +121,13 @@ npx @agnt-rcpt/openclaw receipts --risk high
 
 # Filter by action type and output as JSON
 npx @agnt-rcpt/openclaw receipts --action system.command.execute --json
+
+# `receipts` always returns a collection — use `export --id` to fetch a single receipt by ID
+npx @agnt-rcpt/openclaw export --id urn:receipt:abc-123
+
+# Filter receipts --json output with jq (fields: id, action, risk, target, status, sequence, chain_id, timestamp)
+npx @agnt-rcpt/openclaw receipts --json \
+  | jq '.receipts[] | select(.risk == "high" and .action == "system.command.execute")'
 
 # Verify all chains
 npx @agnt-rcpt/openclaw verify
@@ -127,10 +140,9 @@ npx @agnt-rcpt/openclaw export --chain chain_openclaw_main_sid-42
 
 # Export as a W3C Verifiable Presentation envelope
 npx @agnt-rcpt/openclaw export --chain chain_openclaw_main_sid-42 --format presentation
-
-# Export a single receipt by ID
-npx @agnt-rcpt/openclaw export --id urn:receipt:abc-123
 ```
+
+> **Note:** `parameterPreview` controls what gets stored inside receipts — it does not add fields to `receipts --json` output. To inspect `parameters_preview` values, export the full receipt with `export --id` or `export --chain`. See [Parameter preview](#parameter-preview) for configuration details.
 
 Run `npx @agnt-rcpt/openclaw --help` for all options including `--status`, `--limit`, and `--db`.
 
