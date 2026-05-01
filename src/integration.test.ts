@@ -174,18 +174,19 @@ describe("integration: full plugin lifecycle", () => {
 
     expect(queryData.total_receipts).toBe(3);
     expect(queryData.results).toHaveLength(3);
-    expect(queryData.results[0].action).toBe("filesystem.file.read");
+    // Results are newest-first (delete → write → read)
+    expect(queryData.results[0].action).toBe("filesystem.file.delete");
     expect(queryData.results[1].action).toBe("filesystem.file.create");
-    expect(queryData.results[2].action).toBe("filesystem.file.delete");
+    expect(queryData.results[2].action).toBe("filesystem.file.read");
 
     // Verify risk levels are classified correctly
-    expect(queryData.results[0].risk).toBe("low");    // read
-    expect(queryData.results[2].risk).toBe("high");    // delete
+    expect(queryData.results[0].risk).toBe("high");    // delete
+    expect(queryData.results[2].risk).toBe("low");     // read
 
-    // Verify sequence numbering
-    expect(queryData.results[0].sequence).toBe(1);
+    // Verify sequence numbering (newest-first: sequences 3, 2, 1)
+    expect(queryData.results[0].sequence).toBe(3);
     expect(queryData.results[1].sequence).toBe(2);
-    expect(queryData.results[2].sequence).toBe(3);
+    expect(queryData.results[2].sequence).toBe(1);
 
     // 4. Verify chain integrity via the registered tool (resolve factory with session context)
     const verifyFactory = tools.get("ar_verify_chain")!.factory!;

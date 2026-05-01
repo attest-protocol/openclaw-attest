@@ -38,7 +38,9 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
     label: "Query Attestation Receipts",
     description:
       "Search the cryptographic audit trail of actions taken in this session. " +
-      "Returns signed receipts filtered by action type, risk level, or status.",
+      "Returns receipts newest-first, filtered by action type, risk level, status, chain, or time window. " +
+      "To poll for new actions since your last check, pass `timestamp_after` set to the timestamp of " +
+      "the most recent receipt you've already seen.",
     parameters: Type.Object({
       action_type: Type.Optional(
         Type.String({ description: 'Filter by action type (e.g. "filesystem.file.read")' }),
@@ -48,6 +50,15 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
       ),
       status: Type.Optional(
         Type.String({ description: 'Filter by outcome status: "success", "failure", or "pending"' }),
+      ),
+      chain_id: Type.Optional(
+        Type.String({ description: "Restrict results to a single receipt chain." }),
+      ),
+      timestamp_after: Type.Optional(
+        Type.String({ description: "ISO 8601 — return only receipts at or after this time." }),
+      ),
+      timestamp_before: Type.Optional(
+        Type.String({ description: "ISO 8601 — return only receipts at or before this time." }),
       ),
       limit: Type.Optional(
         Type.Number({ description: "Maximum number of receipts to return (default: 20)" }),
@@ -59,6 +70,9 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
         action_type?: string;
         risk_level?: string;
         status?: string;
+        chain_id?: string;
+        timestamp_after?: string;
+        timestamp_before?: string;
         limit?: number;
       },
     ) {
@@ -69,12 +83,40 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
         ? (params.status as OutcomeStatus)
         : undefined;
 
-      const results = deps.store.query({
+      // Validate ISO 8601 inputs lightly — ignore if unparseable (consistent with
+      // how invalid risk_level/status values are silently dropped above).
+      const after =
+        params.timestamp_after && !isNaN(Date.parse(params.timestamp_after))
+          ? params.timestamp_after
+          : undefined;
+      const before =
+        params.timestamp_before && !isNaN(Date.parse(params.timestamp_before))
+          ? params.timestamp_before
+          : undefined;
+
+      // Fetch all matching receipts without a limit so we can sort newest-first
+      // in JS before slicing. The SDK only supports ASC ordering today.
+      const all = deps.store.query({
         actionType: params.action_type,
         riskLevel,
         status,
-        limit: params.limit ?? 20,
+        chainId: params.chain_id,
+        after,
+        before,
       });
+
+      const limit = params.limit ?? 20;
+      const results = all
+        .sort((a, b) => {
+          const ta = a.credentialSubject.action.timestamp;
+          const tb = b.credentialSubject.action.timestamp;
+          if (tb < ta) return -1;
+          if (tb > ta) return 1;
+          // Tiebreak by sequence descending so calls within the same millisecond
+          // are still returned newest-first within their chain.
+          return b.credentialSubject.chain.sequence - a.credentialSubject.chain.sequence;
+        })
+        .slice(0, limit);
 
       const stats = deps.store.stats();
 
