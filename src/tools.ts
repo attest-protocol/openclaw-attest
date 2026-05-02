@@ -111,9 +111,10 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
           : deps.getChainId(ctx.sessionKey ?? "default", ctx.sessionId);
 
       // Clamp limit: must be a non-negative integer; fall back to default 20 otherwise.
-      const limit = Number.isInteger(params.limit) && (params.limit as number) >= 0
-        ? (params.limit as number)
-        : 20;
+      const limit =
+        typeof params.limit === "number" && Number.isInteger(params.limit) && params.limit >= 0
+          ? params.limit
+          : 20;
 
       // Fetch all matching receipts without a limit so we can sort newest-first
       // in JS before slicing. The SDK only supports ASC ordering today.
