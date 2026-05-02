@@ -169,7 +169,7 @@ describe("integration: full plugin lifecycle", () => {
 
     // 3. Query receipts via the registered tool
     const queryTool = tools.get("ar_query_receipts")!.definition;
-    const queryResult = await queryTool.execute("tc-query", {});
+    const queryResult = await queryTool.execute("tc-query", { all_chains: true });
     const queryData = JSON.parse(queryResult.content[0].text);
 
     expect(queryData.total_receipts).toBe(3);
@@ -245,7 +245,7 @@ describe("integration: full plugin lifecycle", () => {
 
     // Session 2's receipt starts at sequence 1 (fresh chain)
     const queryTool = tools.get("ar_query_receipts")!.definition;
-    const qr = await queryTool.execute("q", { action_type: "filesystem.file.delete" });
+    const qr = await queryTool.execute("q", { action_type: "filesystem.file.delete", all_chains: true });
     const qd = JSON.parse(qr.content[0].text);
     expect(qd.results[0].sequence).toBe(1);
   });
@@ -272,7 +272,7 @@ describe("integration: full plugin lifecycle", () => {
     }, { sessionKey: "err", sessionId: "sid-err" });
 
     const queryTool = tools.get("ar_query_receipts")!.definition;
-    const result = await queryTool.execute("q", { status: "failure" });
+    const result = await queryTool.execute("q", { status: "failure", all_chains: true });
     const data = JSON.parse(result.content[0].text);
 
     expect(data.results).toHaveLength(1);

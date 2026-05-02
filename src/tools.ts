@@ -33,12 +33,14 @@ type ToolFactoryContext = {
  * The factory is called by OpenClaw at runtime with session context.
  */
 export function createQueryReceiptsToolFactory(deps: ToolDeps) {
-  return (_ctx: ToolFactoryContext) => ({
+  return (ctx: ToolFactoryContext) => ({
     name: "ar_query_receipts",
     label: "Query Attestation Receipts",
     description:
       "Search the cryptographic audit trail of actions taken in this session. " +
       "Returns receipts newest-first, filtered by action type, risk level, status, chain, or time window. " +
+      "By default, only receipts from the current session's chain are returned. " +
+      "Set `all_chains` to true to query across all chains. " +
       "To poll for new actions since your last check, pass `timestamp_after` set to the timestamp of " +
       "the most recent receipt you've already seen.",
     parameters: Type.Object({
@@ -54,8 +56,11 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
       chain_id: Type.Optional(
         Type.String({ description: "Restrict results to a single receipt chain." }),
       ),
+      all_chains: Type.Optional(
+        Type.Boolean({ description: "Set true to query across all chains. Default: current session only." }),
+      ),
       timestamp_after: Type.Optional(
-        Type.String({ description: "ISO 8601 — return only receipts at or after this time." }),
+        Type.String({ description: "ISO 8601 — return only receipts after this time (exclusive)." }),
       ),
       timestamp_before: Type.Optional(
         Type.String({ description: "ISO 8601 — return only receipts at or before this time." }),
@@ -71,6 +76,7 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
         risk_level?: string;
         status?: string;
         chain_id?: string;
+        all_chains?: boolean;
         timestamp_after?: string;
         timestamp_before?: string;
         limit?: number;
@@ -94,19 +100,39 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
           ? params.timestamp_before
           : undefined;
 
+      // Resolve the chain filter:
+      //   - explicit chain_id → use it
+      //   - all_chains: true → no filter (query all chains)
+      //   - default → current session's chain
+      const chainId: string | undefined = params.chain_id
+        ? params.chain_id
+        : params.all_chains === true
+          ? undefined
+          : deps.getChainId(ctx.sessionKey ?? "default", ctx.sessionId);
+
+      // Clamp limit: must be a non-negative integer; fall back to default 20 otherwise.
+      const limit = Number.isInteger(params.limit) && (params.limit as number) >= 0
+        ? (params.limit as number)
+        : 20;
+
       // Fetch all matching receipts without a limit so we can sort newest-first
       // in JS before slicing. The SDK only supports ASC ordering today.
       const all = deps.store.query({
         actionType: params.action_type,
         riskLevel,
         status,
-        chainId: params.chain_id,
+        chainId,
         after,
         before,
       });
 
-      const limit = params.limit ?? 20;
-      const results = all
+      // The SDK's `after` filter is >= (inclusive). We want exclusive (>), so we
+      // drop any receipt whose timestamp exactly equals params.timestamp_after.
+      const filtered = after
+        ? all.filter((r) => r.credentialSubject.action.timestamp !== after)
+        : all;
+
+      const results = filtered
         .sort((a, b) => {
           const ta = a.credentialSubject.action.timestamp;
           const tb = b.credentialSubject.action.timestamp;
@@ -128,6 +154,7 @@ export function createQueryReceiptsToolFactory(deps: ToolDeps) {
         by_action: stats.byAction,
         results: results.map((r) => ({
           id: r.id,
+          chain_id: r.credentialSubject.chain.chain_id,
           action: r.credentialSubject.action.type,
           risk: r.credentialSubject.action.risk_level,
           target: r.credentialSubject.action.target?.resource,
